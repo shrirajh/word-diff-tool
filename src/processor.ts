@@ -289,16 +289,59 @@ function extractTextFromRun(runXml: string): string {
 }
 
 /**
+ * Merge adjacent diffs of the same type
+ */
+function mergeAdjacentDiffs(parts: {
+    type: "text" | "ins" | "del";
+    content: string;
+}[]): {
+    type: "text" | "ins" | "del";
+    content: string;
+}[] {
+    if (parts.length <= 1) {
+        return parts;
+    }
+
+    const mergedParts: {
+        type: "text" | "ins" | "del";
+        content: string;
+    }[] = [];
+
+    let currentPart = parts[0];
+
+    for (let i = 1; i < parts.length; i++) {
+        const nextPart = parts[i];
+        
+        // If both parts are the same type (ins or del), merge them
+        if (currentPart.type !== "text" && nextPart.type === currentPart.type) {
+            currentPart.content += nextPart.content;
+        } else {
+            // Push the current part and move to the next
+            mergedParts.push(currentPart);
+            currentPart = nextPart;
+        }
+    }
+    
+    // Push the last part
+    mergedParts.push(currentPart);
+
+    return mergedParts;
+}
+
+/**
  * Convert paragraph parts to markdown with tracked changes
  */
 function convertParagraphPartsToMarkdown(parts: {
     type: "text" | "ins" | "del";
     content: string;
 }[]): string {
+    // First merge adjacent diffs of the same type
+    const mergedParts = mergeAdjacentDiffs(parts);
+    
     // Combine parts with appropriate markdown and tracked change markers
     let markdown = "";
 
-    for (const part of parts) {
+    for (const part of mergedParts) {
         if (part.type === "text") {
             markdown += part.content;
         }
