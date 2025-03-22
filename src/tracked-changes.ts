@@ -94,7 +94,8 @@ export async function extractTrackedChanges(docxBuffer: Buffer): Promise<Tracked
                 for (const textMatch of delTextMatches) {
                     deletedText += decodeXmlEntities(textMatch[1]);
                 }
-            } else {
+            }
+            else {
                 // Try to find regular text elements within deletion
                 const regularTextMatches = findAllMatches(/<w:t\b[^>]*>(.*?)<\/w:t>/gs, match[1]);
                 for (const textMatch of regularTextMatches) {
