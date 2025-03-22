@@ -1,13 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import { 
-    Document, 
-    Paragraph, 
-    TextRun, 
+import {
+    Document,
+    Paragraph,
+    TextRun,
     InsertedTextRun,
     DeletedTextRun,
-    Packer, 
-    SectionType
+    Packer,
+    SectionType,
 } from "docx";
 
 /**
@@ -48,10 +48,10 @@ export async function generateDocWithTrackedChanges(
                         text: content,
                     }),
                 ],
-            })
+            }),
         );
     }
-    
+
     let deltaIdx = 0;
 
     // Add paragraph with insertions
@@ -65,19 +65,19 @@ export async function generateDocWithTrackedChanges(
         // Add each insertion with separators
         for (let i = 0; i < insertions.length; i++) {
             const insertion = insertions[i];
-            
+
             // Add insertion
             const insertedText = new TextRun({
                 text: insertion.text,
             });
-            
+
             insertionParagraphChildren.push(
                 new InsertedTextRun({
                     id: deltaIdx++,
                     children: [insertedText],
                     author: author,
                     date: new Date().toISOString(),
-                })
+                }),
             );
 
             // Add separator if not the last insertion
@@ -85,7 +85,7 @@ export async function generateDocWithTrackedChanges(
                 insertionParagraphChildren.push(
                     new TextRun({
                         text: " and ",
-                    })
+                    }),
                 );
             }
         }
@@ -94,14 +94,14 @@ export async function generateDocWithTrackedChanges(
         insertionParagraphChildren.push(
             new TextRun({
                 text: " other content.",
-            })
+            }),
         );
 
         // Add the paragraph to our collection
         paragraphs.push(
             new Paragraph({
                 children: insertionParagraphChildren,
-            })
+            }),
         );
     }
 
@@ -116,12 +116,12 @@ export async function generateDocWithTrackedChanges(
         // Add each deletion with separators
         for (let i = 0; i < deletions.length; i++) {
             const deletion = deletions[i];
-            
+
             // Add deletion
             const deletedText = new TextRun({
                 text: deletion.text,
             });
-            
+
             deletionParagraphChildren.push(
                 new DeletedTextRun(
                     {
@@ -129,8 +129,8 @@ export async function generateDocWithTrackedChanges(
                         children: [deletedText],
                         author: author,
                         date: new Date().toISOString(),
-                    }
-                )
+                    },
+                ),
             );
 
             // Add separator if not the last deletion
@@ -138,7 +138,7 @@ export async function generateDocWithTrackedChanges(
                 deletionParagraphChildren.push(
                     new TextRun({
                         text: " and ",
-                    })
+                    }),
                 );
             }
         }
@@ -147,14 +147,14 @@ export async function generateDocWithTrackedChanges(
         deletionParagraphChildren.push(
             new TextRun({
                 text: " deleted content.",
-            })
+            }),
         );
 
         // Add the paragraph to our collection
         paragraphs.push(
             new Paragraph({
                 children: deletionParagraphChildren,
-            })
+            }),
         );
     }
 
@@ -193,7 +193,7 @@ export async function generateDocWithTrackedChanges(
                         text: " mixed together.",
                     }),
                 ],
-            })
+            }),
         );
     }
 
@@ -208,6 +208,114 @@ export async function generateDocWithTrackedChanges(
                     type: SectionType.CONTINUOUS,
                 },
                 children: paragraphs,
+            },
+        ],
+    });
+
+    // Create directory if it doesn't exist
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Generate and save the document
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+
+    return outputPath;
+}
+
+/**
+ * Generates a document with highlighted text
+ *
+ * @param outputPath Path to save the document
+ * @returns Path to the saved document
+ */
+export async function generateDocWithHighlights(outputPath: string): Promise<string> {
+    // Create document
+    const doc = new Document({
+        creator: "Highlight Test",
+        title: "Test Document with Highlighted Text",
+        description: "Generated for testing highlight feature",
+        sections: [
+            {
+                properties: {
+                    type: SectionType.CONTINUOUS,
+                },
+                children: [
+                    // Introduction paragraph
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "This is a document with highlighted text.",
+                            }),
+                        ],
+                    }),
+
+                    // Paragraph with green highlighted text (additions)
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "This paragraph contains ",
+                            }),
+                            new TextRun({
+                                text: "green highlighted text",
+                                highlight: "green", // Word highlight for additions
+                            }),
+                            new TextRun({
+                                text: " which should be treated as an addition.",
+                            }),
+                        ],
+                    }),
+
+                    // Paragraph with red highlighted text (deletions)
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "This paragraph contains ",
+                            }),
+                            new TextRun({
+                                text: "red highlighted text",
+                                highlight: "red", // Word highlight for deletions
+                            }),
+                            new TextRun({
+                                text: " which should be treated as a deletion.",
+                            }),
+                        ],
+                    }),
+
+                    // Paragraph with mixed highlights
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "This paragraph has both ",
+                            }),
+                            new TextRun({
+                                text: "added text",
+                                highlight: "green",
+                            }),
+                            new TextRun({
+                                text: " and ",
+                            }),
+                            new TextRun({
+                                text: "deleted text",
+                                highlight: "red",
+                            }),
+                            new TextRun({
+                                text: " in the same paragraph.",
+                            }),
+                        ],
+                    }),
+
+                    // Paragraph with no highlights
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "This paragraph has no highlights and should be unchanged.",
+                            }),
+                        ],
+                    }),
+                ],
             },
         ],
     });
@@ -343,6 +451,11 @@ export async function generateTestSuite(): Promise<string[]> {
                     },
                 ],
             },
+        ),
+
+        // Document with highlighted text
+        await generateDocWithHighlights(
+            path.join(outputDir, "highlighted.docx"),
         ),
     ];
 

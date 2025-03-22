@@ -103,4 +103,44 @@ describe("DOCX Processor Tests", () => {
         expect(markdown).toContain("{--complex deletion--}");
         expect(markdown).toContain("{--another complex deletion--}");
     });
+
+    it("should process a document with highlighted text when highlight flag is enabled", async () => {
+        const highlightDocPath = path.resolve(process.cwd(), "tests/fixtures/highlighted.docx");
+        expect(fs.existsSync(highlightDocPath)).toBe(true);
+
+        // Process with highlight mode enabled
+        const markdown = await processDocxWithTrackedChanges(highlightDocPath, true);
+        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("This is a document with highlighted text");
+
+        // Should treat green highlights as insertions
+        expect(markdown).toContain("{++green highlighted text++}");
+        
+        // Should treat red highlights as deletions
+        expect(markdown).toContain("{--red highlighted text--}");
+        
+        // Should handle mixed highlights in the same paragraph
+        expect(markdown).toContain("{++added text++}");
+        expect(markdown).toContain("{--deleted text--}");
+        
+        // Regular text should be unchanged
+        expect(markdown).toContain("This paragraph has no highlights and should be unchanged");
+    });
+
+    it("should ignore highlighted text when highlight flag is disabled", async () => {
+        const highlightDocPath = path.resolve(process.cwd(), "tests/fixtures/highlighted.docx");
+        expect(fs.existsSync(highlightDocPath)).toBe(true);
+
+        // Process with highlight mode disabled (default)
+        const markdown = await processDocxWithTrackedChanges(highlightDocPath);
+        expect(markdown).toContain("# Markdown with tracked changes");
+
+        // Should contain the text but without the tracked changes markup
+        expect(markdown).toContain("This paragraph contains green highlighted text");
+        expect(markdown).toContain("This paragraph contains red highlighted text");
+        
+        // Should not contain tracked changes markup for highlighted text
+        expect(markdown).not.toContain("{++green highlighted text++}");
+        expect(markdown).not.toContain("{--red highlighted text--}");
+    });
 });

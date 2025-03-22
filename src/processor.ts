@@ -241,18 +241,18 @@ function processParagraphContent(paragraphXml: string): string {
  */
 function extractTextFromElement(elementXml: string, elementType: "ins" | "del"): string {
     let text = "";
-    
+
     // For deletions, first try with delText, if not found, fallback to regular text
     if (elementType === "del") {
         const delTextRegex = /<w:delText\b[^>]*>(.*?)<\/w:delText>/gs;
         let match;
         let hasMatches = false;
-        
+
         while ((match = delTextRegex.exec(elementXml)) !== null) {
             text += decodeXmlEntities(match[1]);
             hasMatches = true;
         }
-        
+
         // If no delText elements found, try with regular text elements
         if (!hasMatches) {
             const regularTextRegex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
@@ -260,7 +260,8 @@ function extractTextFromElement(elementXml: string, elementType: "ins" | "del"):
                 text += decodeXmlEntities(match[1]);
             }
         }
-    } else {
+    }
+    else {
         // For insertions, use regular text elements
         const regex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
         let match;
@@ -443,7 +444,7 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
         }
 
         // Determine which element comes first
-        if (runStartIndex !== -1 && (runStartIndex < insStartIndex || insStartIndex === -1) 
+        if (runStartIndex !== -1 && (runStartIndex < insStartIndex || insStartIndex === -1)
             && (runStartIndex < delStartIndex || delStartIndex === -1)) {
             // Process regular run
             const runEndIndex = paragraphXml.indexOf("</w:r>", runStartIndex);
@@ -478,13 +479,15 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
                             type: "ins",
                             content: textContent,
                         });
-                    } else if (highlightType === "red") {
+                    }
+                    else if (highlightType === "red") {
                         // Red highlight = deletion
                         parts.push({
                             type: "del",
                             content: textContent,
                         });
-                    } else {
+                    }
+                    else {
                         // Regular text
                         parts.push({
                             type: "text",
@@ -557,20 +560,21 @@ function getHighlightType(runXml: string): "green" | "red" | "none" {
     // Check for highlighting in the run properties
     const highlightRegex = /<w:highlight\s+w:val="([^"]+)"/;
     const match = highlightRegex.exec(runXml);
-    
+
     if (match) {
         const highlightColor = match[1].toLowerCase();
         if (highlightColor === "green") {
             return "green";
-        } else if (highlightColor === "red") {
+        }
+        else if (highlightColor === "red") {
             return "red";
         }
     }
-    
+
     // Check for shading with green or red fill
     const shadingRegex = /<w:shd\s+[^>]*w:fill="([^"]+)"/;
     const shadingMatch = shadingRegex.exec(runXml);
-    
+
     if (shadingMatch) {
         const fillColor = shadingMatch[1].toLowerCase();
         // Check for green shades (including light green)
@@ -582,7 +586,7 @@ function getHighlightType(runXml: string): "green" | "red" | "none" {
             return "red";
         }
     }
-    
+
     return "none";
 }
 
