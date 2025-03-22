@@ -88,9 +88,18 @@ export async function extractTrackedChanges(docxBuffer: Buffer): Promise<Tracked
 
             // Extract all deleted text
             let deletedText = "";
+            // Look for both standard delText elements and regular text within deletions
             const delTextMatches = findAllMatches(/<w:delText\b[^>]*>(.*?)<\/w:delText>/gs, match[1]);
-            for (const textMatch of delTextMatches) {
-                deletedText += decodeXmlEntities(textMatch[1]);
+            if (delTextMatches.length > 0) {
+                for (const textMatch of delTextMatches) {
+                    deletedText += decodeXmlEntities(textMatch[1]);
+                }
+            } else {
+                // Try to find regular text elements within deletion
+                const regularTextMatches = findAllMatches(/<w:t\b[^>]*>(.*?)<\/w:t>/gs, match[1]);
+                for (const textMatch of regularTextMatches) {
+                    deletedText += decodeXmlEntities(textMatch[1]);
+                }
             }
 
             if (deletedText) {

@@ -29,18 +29,10 @@ export default [
         },
     },
 
-    // TypeScript config
+    // Common TypeScript rules and plugins
     {
         files: ["**/*.ts", "**/*.tsx"],
         ignores: ["**/dist/**", "**/build/**"],
-        languageOptions: {
-            ecmaVersion: "latest",
-            sourceType: "module",
-            parser: tsParser,
-            parserOptions: {
-                project: "./tsconfig.json",
-            },
-        },
         plugins: {
             "@stylistic": stylistic,
             "@typescript-eslint": tsPlugin,
@@ -74,6 +66,32 @@ export default [
                 multiline: true,
                 consistent: true,
             }],
+        },
+    },
+
+    // TypeScript source config
+    {
+        files: ["src/**/*.ts", "src/**/*.tsx"],
+        languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            parser: tsParser,
+            parserOptions: {
+                project: "./tsconfig.json",
+            },
+        },
+    },
+
+    // TypeScript test config
+    {
+        files: ["tests/**/*.ts", "tests/**/*.tsx", "vitest.config.ts"],
+        languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            parser: tsParser,
+            parserOptions: {
+                project: "./tsconfig.test.json",
+            },
         },
     },
 

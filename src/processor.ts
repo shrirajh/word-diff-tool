@@ -238,13 +238,32 @@ function processParagraphContent(paragraphXml: string): string {
  */
 function extractTextFromElement(elementXml: string, elementType: "ins" | "del"): string {
     let text = "";
-    const regex = elementType === "del"
-        ? /<w:delText\b[^>]*>(.*?)<\/w:delText>/gs
-        : /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
-
-    let match;
-    while ((match = regex.exec(elementXml)) !== null) {
-        text += decodeXmlEntities(match[1]);
+    
+    // For deletions, first try with delText, if not found, fallback to regular text
+    if (elementType === "del") {
+        const delTextRegex = /<w:delText\b[^>]*>(.*?)<\/w:delText>/gs;
+        let match;
+        let hasMatches = false;
+        
+        while ((match = delTextRegex.exec(elementXml)) !== null) {
+            text += decodeXmlEntities(match[1]);
+            hasMatches = true;
+        }
+        
+        // If no delText elements found, try with regular text elements
+        if (!hasMatches) {
+            const regularTextRegex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
+            while ((match = regularTextRegex.exec(elementXml)) !== null) {
+                text += decodeXmlEntities(match[1]);
+            }
+        }
+    } else {
+        // For insertions, use regular text elements
+        const regex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
+        let match;
+        while ((match = regex.exec(elementXml)) !== null) {
+            text += decodeXmlEntities(match[1]);
+        }
     }
 
     return text;
