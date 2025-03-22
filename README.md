@@ -1,4 +1,4 @@
-# Word-Tool: DOCX to Markdown with Tracked Changes
+# Word-Diff-Tool: DOCX to Markdown with Tracked Changes
 
 A command-line tool that converts Word documents (.docx) with tracked changes into Markdown format, preserving the tracked changes as inline diffs.
 
@@ -16,8 +16,8 @@ A command-line tool that converts Word documents (.docx) with tracked changes in
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/word-tool.git
-cd word-tool
+git clone https://github.com/shrirajh/word-diff-tool.git
+cd word-diff-tool
 
 # Install dependencies
 npm install
@@ -36,17 +36,17 @@ npm link
 
 ```bash
 # Basic usage
-word-tool input.docx
+word-diff-tool input.docx
 
 # Specify an output file
-word-tool input.docx -o output.md
+word-diff-tool input.docx -o output.md
 ```
 
 ## Examples
 
 ```bash
 # Process the sample document
-word-tool trackingtest1.docx
+word-diff-tool trackingtest1.docx
 ```
 
 ## How It Works

@@ -8,7 +8,7 @@ import { processDocxWithTrackedChanges } from "./processor";
 const program = new Command();
 
 program
-    .name("word-tool")
+    .name("word-diff-tool")
     .description("Convert Word documents with tracked changes to markdown with inline diffs")
     .version("1.0.0");
 

@@ -1,10 +1,10 @@
 {
-  "name": "word-tool",
+  "name": "word-diff-tool",
   "version": "1.0.0",
   "description": "CLI tool to convert Word documents with tracked changes into markdown with inline diffs",
   "main": "dist/index.js",
   "bin": {
-    "word-tool": "./dist/index.js"
+    "word-diff-tool": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
