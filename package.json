@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "bin": {
     "word-diff-tool": "./dist/index.js",
-    "md-diff-tool": "./dist/md-diff-cli.js"
+    "md-diff-tool": "./dist/md-diff-cli.js",
+    "md-apply-tool": "./dist/md-apply-cli.js"
   },
   "scripts": {
     "build": "tsc",
