@@ -1,0 +1,43 @@
+{
+  "name": "word-tool",
+  "version": "1.0.0",
+  "description": "CLI tool to convert Word documents with tracked changes into markdown with inline diffs",
+  "main": "dist/index.js",
+  "bin": {
+    "word-tool": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "npm run build",
+    "lint": "eslint . --fix"
+  },
+  "keywords": [
+    "word",
+    "docx",
+    "markdown",
+    "tracked-changes",
+    "diff",
+    "critic-markup"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "devDependencies": {
+    "@stylistic/eslint-plugin": "^4.2.0",
+    "@stylistic/eslint-plugin-ts": "^4.2.0",
+    "@types/node": "^22.13.11",
+    "@typescript-eslint/eslint-plugin": "^8.27.0",
+    "@typescript-eslint/parser": "^8.27.0",
+    "eslint": "^9.23.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "docx": "^9.3.0",
+    "jszip": "^3.10.1"
+  }
+}
