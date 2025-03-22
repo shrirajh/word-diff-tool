@@ -15,6 +15,7 @@ program
 program
     .argument("<input>", "Path to the input Word document (.docx)")
     .option("-o, --output <file>", "Output markdown file path (defaults to input filename with .md extension)")
+    .option("-h, --highlight", "Treat green highlighted text as additions and red highlighted text as deletions")
     .action(async (input, options) => {
         try {
             // Validate input file
@@ -38,7 +39,7 @@ program
             console.log(`Output will be saved to: ${outputPath}`);
 
             // Process the document
-            const markdown = await processDocxWithTrackedChanges(input);
+            const markdown = await processDocxWithTrackedChanges(input, options.highlight);
 
             // Write output
             fs.writeFileSync(outputPath, markdown);

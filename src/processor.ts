@@ -5,9 +5,10 @@ import * as JSZip from "jszip";
  * Process a Word document with tracked changes and convert to markdown with inline diffs
  *
  * @param filePath Path to the Word document
+ * @param useHighlights Whether to treat highlighted text as additions/deletions
  * @returns Markdown string with inline diffs
  */
-export async function processDocxWithTrackedChanges(filePath: string): Promise<string> {
+export async function processDocxWithTrackedChanges(filePath: string, useHighlights = false): Promise<string> {
     try {
         console.log("Reading document file...");
         const buffer = fs.readFileSync(filePath);
@@ -23,7 +24,7 @@ export async function processDocxWithTrackedChanges(filePath: string): Promise<s
 
         console.log("Converting to markdown with tracked changes...");
         // Convert the document content to markdown with tracked changes
-        const markdown = convertDocxXmlToMarkdown(documentXml);
+        const markdown = convertDocxXmlToMarkdown(documentXml, useHighlights);
 
         return markdown;
     }
@@ -36,11 +37,13 @@ export async function processDocxWithTrackedChanges(filePath: string): Promise<s
 /**
  * Directly convert Word document XML to markdown with tracked changes
  */
-function convertDocxXmlToMarkdown(xml: string): string {
+function convertDocxXmlToMarkdown(xml: string, useHighlights = false): string {
     console.log(`Document XML size: ${xml.length} characters`);
 
     // Extract each paragraph from the document
-    const paragraphs = extractParagraphs(xml);
+    const paragraphs = useHighlights
+        ? extractParagraphsWithHighlights(xml)
+        : extractParagraphs(xml);
 
     console.log(`Extracted ${paragraphs.length} paragraphs`);
 
@@ -355,6 +358,232 @@ function formatParagraphAsMarkdown(text: string): string {
     });
 
     return text;
+}
+
+/**
+ * Extract paragraphs from document XML, also treating highlighted text as tracked changes
+ */
+function extractParagraphsWithHighlights(xml: string): string[] {
+    const paragraphs: string[] = [];
+    let paragraphCount = 0;
+
+    try {
+        // Process each paragraph
+        let currentPos = 0;
+        let startTagPos = xml.indexOf("<w:p", currentPos);
+
+        while (startTagPos !== -1) {
+            // Find the end of this paragraph
+            const endTagPos = xml.indexOf("</w:p>", startTagPos);
+            if (endTagPos === -1) break; // No closing tag found
+
+            paragraphCount++;
+            if (paragraphCount % 20 === 0) {
+                console.log(`Processing paragraph ${paragraphCount}...`);
+            }
+
+            // Extract the paragraph content (excluding the tags)
+            const paragraphContent = xml.substring(
+                xml.indexOf(">", startTagPos) + 1,
+                endTagPos,
+            );
+
+            try {
+                // Process the paragraph content with highlights
+                const processedParagraph = processParagraphContentWithHighlights(paragraphContent);
+
+                // Skip empty paragraphs
+                if (processedParagraph.trim()) {
+                    paragraphs.push(processedParagraph);
+                }
+            }
+            catch (error) {
+                console.error(`Error processing paragraph ${paragraphCount}: ${error}`);
+                // Add a placeholder for the failed paragraph to preserve document structure
+                paragraphs.push(`[Error processing paragraph ${paragraphCount}]`);
+            }
+
+            // Move to the next paragraph
+            currentPos = endTagPos + 6;
+            startTagPos = xml.indexOf("<w:p", currentPos);
+        }
+
+        console.log(`Total paragraphs found: ${paragraphCount}`);
+    }
+    catch (error) {
+        console.error("Error extracting paragraphs with highlights:", error);
+    }
+
+    return paragraphs;
+}
+
+/**
+ * Process paragraph content, treating highlighted text as tracked changes
+ */
+function processParagraphContentWithHighlights(paragraphXml: string): string {
+    // Build paragraph content piece by piece, preserving tracked changes
+    const parts: {
+        type: "text" | "ins" | "del";
+        content: string;
+    }[] = [];
+    let currentPosition = 0;
+
+    // Process each section of the paragraph
+    while (currentPosition < paragraphXml.length) {
+        // Check for regular runs that may contain highlighting
+        const runStartIndex = paragraphXml.indexOf("<w:r", currentPosition);
+
+        // Also check for actual tracked changes
+        const insStartIndex = paragraphXml.indexOf("<w:ins", currentPosition);
+        const delStartIndex = paragraphXml.indexOf("<w:del", currentPosition);
+
+        // If we can't find any more elements, break
+        if (runStartIndex === -1 && insStartIndex === -1 && delStartIndex === -1) {
+            break;
+        }
+
+        // Determine which element comes first
+        if (runStartIndex !== -1 && (runStartIndex < insStartIndex || insStartIndex === -1) 
+            && (runStartIndex < delStartIndex || delStartIndex === -1)) {
+            // Process regular run
+            const runEndIndex = paragraphXml.indexOf("</w:r>", runStartIndex);
+
+            if (runEndIndex === -1) {
+                // Malformed XML - move to next character to avoid infinite loop
+                currentPosition = runStartIndex + 1;
+                continue;
+            }
+
+            const runContent = paragraphXml.substring(runStartIndex, runEndIndex + 6);
+
+            // Skip runs inside insertions or deletions
+            const previousXml = paragraphXml.substring(0, runStartIndex);
+            const insOpenCount = (previousXml.match(/<w:ins\b/g) || []).length;
+            const insCloseCount = (previousXml.match(/<\/w:ins>/g) || []).length;
+            const delOpenCount = (previousXml.match(/<w:del\b/g) || []).length;
+            const delCloseCount = (previousXml.match(/<\/w:del>/g) || []).length;
+
+            const insideIns = insOpenCount > insCloseCount;
+            const insideDel = delOpenCount > delCloseCount;
+
+            if (!insideIns && !insideDel) {
+                // Check if this run contains highlighting
+                const highlightType = getHighlightType(runContent);
+                const textContent = extractTextFromRun(runContent);
+
+                if (textContent) {
+                    if (highlightType === "green") {
+                        // Green highlight = insertion
+                        parts.push({
+                            type: "ins",
+                            content: textContent,
+                        });
+                    } else if (highlightType === "red") {
+                        // Red highlight = deletion
+                        parts.push({
+                            type: "del",
+                            content: textContent,
+                        });
+                    } else {
+                        // Regular text
+                        parts.push({
+                            type: "text",
+                            content: textContent,
+                        });
+                    }
+                }
+            }
+
+            currentPosition = runEndIndex + 6;
+        }
+        else if (insStartIndex !== -1 && (insStartIndex < delStartIndex || delStartIndex === -1)) {
+            // Process insertion
+            const insEndIndex = paragraphXml.indexOf("</w:ins>", insStartIndex);
+
+            if (insEndIndex === -1) {
+                // Malformed XML - move to next character to avoid infinite loop
+                currentPosition = insStartIndex + 1;
+                continue;
+            }
+
+            const insContent = paragraphXml.substring(insStartIndex, insEndIndex + 7);
+            const insertedText = extractTextFromElement(insContent, "ins");
+
+            if (insertedText) {
+                parts.push({
+                    type: "ins",
+                    content: insertedText,
+                });
+            }
+
+            currentPosition = insEndIndex + 7;
+        }
+        else if (delStartIndex !== -1) {
+            // Process deletion
+            const delEndIndex = paragraphXml.indexOf("</w:del>", delStartIndex);
+
+            if (delEndIndex === -1) {
+                // Malformed XML - move to next character to avoid infinite loop
+                currentPosition = delStartIndex + 1;
+                continue;
+            }
+
+            const delContent = paragraphXml.substring(delStartIndex, delEndIndex + 7);
+            const deletedText = extractTextFromElement(delContent, "del");
+
+            if (deletedText) {
+                parts.push({
+                    type: "del",
+                    content: deletedText,
+                });
+            }
+
+            currentPosition = delEndIndex + 7;
+        }
+        else {
+            // Shouldn't get here, but just in case, move forward to avoid infinite loop
+            currentPosition++;
+        }
+    }
+
+    // Convert paragraph parts to markdown with tracked changes
+    return convertParagraphPartsToMarkdown(parts);
+}
+
+/**
+ * Get highlight type from run XML (green, red, or none)
+ */
+function getHighlightType(runXml: string): "green" | "red" | "none" {
+    // Check for highlighting in the run properties
+    const highlightRegex = /<w:highlight\s+w:val="([^"]+)"/;
+    const match = highlightRegex.exec(runXml);
+    
+    if (match) {
+        const highlightColor = match[1].toLowerCase();
+        if (highlightColor === "green") {
+            return "green";
+        } else if (highlightColor === "red") {
+            return "red";
+        }
+    }
+    
+    // Check for shading with green or red fill
+    const shadingRegex = /<w:shd\s+[^>]*w:fill="([^"]+)"/;
+    const shadingMatch = shadingRegex.exec(runXml);
+    
+    if (shadingMatch) {
+        const fillColor = shadingMatch[1].toLowerCase();
+        // Check for green shades (including light green)
+        if (fillColor === "00ff00" || fillColor === "92d050" || fillColor === "00b050") {
+            return "green";
+        }
+        // Check for red shades
+        else if (fillColor === "ff0000" || fillColor === "ff6666" || fillColor === "ff9999") {
+            return "red";
+        }
+    }
+    
+    return "none";
 }
 
 /**
