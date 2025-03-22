@@ -26,7 +26,7 @@ describe("DOCX Processor Tests", () => {
         expect(fs.existsSync(simpleDocPath)).toBe(true);
 
         const markdown = await processDocxWithTrackedChanges(simpleDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# simple");
         expect(markdown).toContain("This is a simple document");
         expect(markdown).toContain("It has no tracked changes");
         expect(markdown).toContain("Just regular paragraphs of text");
@@ -43,7 +43,7 @@ describe("DOCX Processor Tests", () => {
         expect(fs.existsSync(insertionsDocPath)).toBe(true);
 
         const markdown = await processDocxWithTrackedChanges(insertionsDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# insertions-only");
         expect(markdown).toContain("This is a document with insertions only");
 
         // Should contain insertion markup
@@ -62,7 +62,7 @@ describe("DOCX Processor Tests", () => {
         expect(fs.existsSync(deletionsDocPath)).toBe(true);
 
         const markdown = await processDocxWithTrackedChanges(deletionsDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# deletions-only");
         expect(markdown).toContain("This is a document with deletions only");
 
         // Should contain deletion markup
@@ -81,7 +81,7 @@ describe("DOCX Processor Tests", () => {
         expect(fs.existsSync(mixedDocPath)).toBe(true);
 
         const markdown = await processDocxWithTrackedChanges(mixedDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# mixed-changes");
         expect(markdown).toContain("This is a document with mixed tracked changes");
 
         // Should contain both insertion and deletion markup
@@ -94,7 +94,7 @@ describe("DOCX Processor Tests", () => {
         expect(fs.existsSync(complexDocPath)).toBe(true);
 
         const markdown = await processDocxWithTrackedChanges(complexDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# complex");
         expect(markdown).toContain("This is a complex document with multiple paragraphs");
 
         // Should contain multiple tracked changes
@@ -110,7 +110,7 @@ describe("DOCX Processor Tests", () => {
 
         // Process with highlight mode enabled
         const markdown = await processDocxWithTrackedChanges(highlightDocPath, true);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# highlighted");
         expect(markdown).toContain("This is a document with highlighted text");
 
         // Should treat green highlights as insertions
@@ -133,7 +133,7 @@ describe("DOCX Processor Tests", () => {
 
         // Process with highlight mode disabled (default)
         const markdown = await processDocxWithTrackedChanges(highlightDocPath);
-        expect(markdown).toContain("# Markdown with tracked changes");
+        expect(markdown).toContain("# highlighted");
 
         // Should contain the text but without the tracked changes markup
         expect(markdown).toContain("This paragraph contains green highlighted text");

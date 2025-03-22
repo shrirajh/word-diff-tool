@@ -1,5 +1,6 @@
 import fs from "fs";
 import * as JSZip from "jszip";
+import path from "path";
 
 /**
  * Process a Word document with tracked changes and convert to markdown with inline diffs
@@ -24,7 +25,7 @@ export async function processDocxWithTrackedChanges(filePath: string, useHighlig
 
         console.log("Converting to markdown with tracked changes...");
         // Convert the document content to markdown with tracked changes
-        const markdown = convertDocxXmlToMarkdown(documentXml, useHighlights);
+        const markdown = convertDocxXmlToMarkdown(documentXml, useHighlights, filePath);
 
         return markdown;
     }
@@ -37,7 +38,7 @@ export async function processDocxWithTrackedChanges(filePath: string, useHighlig
 /**
  * Directly convert Word document XML to markdown with tracked changes
  */
-function convertDocxXmlToMarkdown(xml: string, useHighlights = false): string {
+function convertDocxXmlToMarkdown(xml: string, useHighlights = false, filePath = "document.docx"): string {
     console.log(`Document XML size: ${xml.length} characters`);
 
     // Extract each paragraph from the document
@@ -47,8 +48,8 @@ function convertDocxXmlToMarkdown(xml: string, useHighlights = false): string {
 
     console.log(`Extracted ${paragraphs.length} paragraphs`);
 
-    // Combine paragraphs into markdown
-    let markdown = "# Markdown with tracked changes\n\n";
+    // Combine paragraphs into markdown, using filename as title
+    let markdown = `# ${path.basename(filePath, ".docx")}\n\n`;
 
     for (const paragraph of paragraphs) {
         markdown += paragraph + "\n\n";
