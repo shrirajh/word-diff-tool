@@ -4,7 +4,8 @@
   "description": "CLI tool to convert Word documents with tracked changes into markdown with inline diffs",
   "main": "dist/index.js",
   "bin": {
-    "word-diff-tool": "./dist/index.js"
+    "word-diff-tool": "./dist/index.js",
+    "md-diff-tool": "./dist/md-diff-cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "commander": "^13.1.0",
+    "diff-match-patch-es": "^1.0.1",
     "docx": "^9.3.0",
     "jszip": "^3.10.1"
   }
