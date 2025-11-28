@@ -134,7 +134,8 @@ export async function extractTrackedChanges(docxBuffer: Buffer): Promise<Tracked
             if (fs.existsSync(tempFilePath)) {
                 fs.unlinkSync(tempFilePath);
             }
-        } catch {
+        }
+        catch {
             // Ignore cleanup errors
         }
     }
@@ -156,13 +157,13 @@ function findChangeContext(
         fullText: string;
     },
 ): {
-        position: number;
-        paragraphIndex: number;
-        surroundingContext: {
-            before: string;
-            after: string;
-        };
-    } {
+    position: number;
+    paragraphIndex: number;
+    surroundingContext: {
+        before: string;
+        after: string;
+    };
+} {
     // Find the index of the change element in the XML
     const index = docXml.indexOf(changeXml);
     if (index === -1) {

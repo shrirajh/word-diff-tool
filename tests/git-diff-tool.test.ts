@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { generateTestSuite, generateDocWithComments } from "./utils/document-generator";
+import { generateTestSuite } from "./utils/document-generator";
 import { generateGitDiff, formatAsGitDiff } from "../src/git-diff-tool";
 import { extractComments } from "../src/docx-utils";
 import * as fs from "fs";

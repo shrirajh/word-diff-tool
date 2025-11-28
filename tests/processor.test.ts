@@ -115,14 +115,14 @@ describe("DOCX Processor Tests", () => {
 
         // Should treat green highlights as insertions
         expect(markdown).toContain("{++green highlighted text++}");
-        
+
         // Should treat red highlights as deletions
         expect(markdown).toContain("{--red highlighted text--}");
-        
+
         // Should handle mixed highlights in the same paragraph
         expect(markdown).toContain("{++added text++}");
         expect(markdown).toContain("{--deleted text--}");
-        
+
         // Regular text should be unchanged
         expect(markdown).toContain("This paragraph has no highlights and should be unchanged");
     });
@@ -138,7 +138,7 @@ describe("DOCX Processor Tests", () => {
         // Should contain the text but without the tracked changes markup
         expect(markdown).toContain("This paragraph contains green highlighted text");
         expect(markdown).toContain("This paragraph contains red highlighted text");
-        
+
         // Should not contain tracked changes markup for highlighted text
         expect(markdown).not.toContain("{++green highlighted text++}");
         expect(markdown).not.toContain("{--red highlighted text--}");
@@ -148,14 +148,13 @@ describe("DOCX Processor Tests", () => {
         const insertionsDocPath = path.resolve(process.cwd(), "tests/fixtures/insertions-only.docx");
         expect(fs.existsSync(insertionsDocPath)).toBe(true);
 
-        // Manual test for merging adjacent diffs
-        const originalMarkdown = "{++Prior to use in the artificial neural network, text underwent several preprocessing stages. This process was the same as that used in the previous derivation and validation studies. Namely, negation detection was applied first, followed by punctuation removed, then word stemming and ++}{++stopwords++}{++ removal. Subsequently, n-grams, which were one-to-three-word stems in length, were formed. Count vectorisation was then performed, prior to use in the artificial neural network.++}{++\".++}";
-        const expectedMarkdown = "{++Prior to use in the artificial neural network, text underwent several preprocessing stages. This process was the same as that used in the previous derivation and validation studies. Namely, negation detection was applied first, followed by punctuation removed, then word stemming and stopwords removal. Subsequently, n-grams, which were one-to-three-word stems in length, were formed. Count vectorisation was then performed, prior to use in the artificial neural network.\".++}";
+        // Example of what merging looks like (for documentation purposes):
+        // Before: "{++text1++}{++text2++}" -> After: "{++text1text2++}"
 
         // Simulate the processing by directly accessing the function
         // Since the function is not exported, we'll test the behavior through the complete process
         const markdown = await processDocxWithTrackedChanges(insertionsDocPath);
-        
+
         // Create a test document with this specific content for verification
         expect(markdown).not.toContain("{++}++}{++"); // Should not contain empty insertions with breaks
         expect(markdown).toContain("{++inserted text++}"); // Basic insertion should be preserved

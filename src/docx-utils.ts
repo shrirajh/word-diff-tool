@@ -286,8 +286,16 @@ export async function extractComments(docxPath: string): Promise<WordComment[]> 
 /**
  * Parse the comments.xml file to extract comment content
  */
-function parseCommentsXml(xml: string): Map<string, { author: string; date: string; text: string }> {
-    const commentMap = new Map<string, { author: string; date: string; text: string }>();
+function parseCommentsXml(xml: string): Map<string, {
+    author: string;
+    date: string;
+    text: string;
+}> {
+    const commentMap = new Map<string, {
+        author: string;
+        date: string;
+        text: string;
+    }>();
 
     // Find all w:comment elements
     const commentRegex = /<w:comment\s+[^>]*w:id="([^"]+)"[^>]*w:author="([^"]*)"[^>]*w:date="([^"]*)"[^>]*>([\s\S]*?)<\/w:comment>/g;
@@ -304,7 +312,11 @@ function parseCommentsXml(xml: string): Map<string, { author: string; date: stri
         // Extract text from the comment content
         const text = extractTextFromXmlContent(content);
 
-        commentMap.set(id, { author, date, text });
+        commentMap.set(id, {
+            author,
+            date,
+            text,
+        });
     }
 
     // Try alternate attribute order if no matches found
@@ -317,7 +329,11 @@ function parseCommentsXml(xml: string): Map<string, { author: string; date: stri
 
             const text = extractTextFromXmlContent(content);
 
-            commentMap.set(id, { author, date, text });
+            commentMap.set(id, {
+                author,
+                date,
+                text,
+            });
         }
     }
 
@@ -338,7 +354,11 @@ function parseCommentsXml(xml: string): Map<string, { author: string; date: stri
                 const date = dateMatch ? dateMatch[1] : "";
                 const text = extractTextFromXmlContent(content);
 
-                commentMap.set(id, { author, date, text });
+                commentMap.set(id, {
+                    author,
+                    date,
+                    text,
+                });
             }
         }
     }
@@ -365,11 +385,25 @@ function extractTextFromXmlContent(xml: string): string {
 /**
  * Parse document.xml to find comment ranges (start/end) and the anchored text with context
  */
-function parseCommentRanges(documentXml: string): Map<string, { anchoredText: string; contextBefore: string; contextAfter: string; paragraphNumber: number }> {
-    const rangeMap = new Map<string, { anchoredText: string; contextBefore: string; contextAfter: string; paragraphNumber: number }>();
+function parseCommentRanges(documentXml: string): Map<string, {
+    anchoredText: string;
+    contextBefore: string;
+    contextAfter: string;
+    paragraphNumber: number;
+}> {
+    const rangeMap = new Map<string, {
+        anchoredText: string;
+        contextBefore: string;
+        contextAfter: string;
+        paragraphNumber: number;
+    }>();
 
     // First, find all paragraphs and their positions and content
-    const paragraphs: { start: number; end: number; content: string }[] = [];
+    const paragraphs: {
+        start: number;
+        end: number;
+        content: string;
+    }[] = [];
     let paragraphMatch;
     const paragraphRegex = /<w:p\b[^>]*>/g;
 
@@ -379,7 +413,11 @@ function parseCommentRanges(documentXml: string): Map<string, { anchoredText: st
         const endTagIndex = documentXml.indexOf("</w:p>", start);
         if (endTagIndex !== -1) {
             const content = documentXml.substring(start, endTagIndex + 6);
-            paragraphs.push({ start, end: endTagIndex + 6, content });
+            paragraphs.push({
+                start,
+                end: endTagIndex + 6,
+                content,
+            });
         }
     }
 
@@ -402,7 +440,11 @@ function parseCommentRanges(documentXml: string): Map<string, { anchoredText: st
 
         // Find which paragraph this comment is in
         let paragraphNumber = 0;
-        let containingParagraph: { start: number; end: number; content: string } | null = null;
+        let containingParagraph: {
+            start: number;
+            end: number;
+            content: string;
+        } | null = null;
 
         for (let i = 0; i < paragraphs.length; i++) {
             if (startPos >= paragraphs[i].start && startPos <= paragraphs[i].end) {
@@ -428,7 +470,12 @@ function parseCommentRanges(documentXml: string): Map<string, { anchoredText: st
             }
         }
 
-        rangeMap.set(id, { anchoredText, contextBefore, contextAfter, paragraphNumber });
+        rangeMap.set(id, {
+            anchoredText,
+            contextBefore,
+            contextAfter,
+            paragraphNumber,
+        });
     }
 
     return rangeMap;

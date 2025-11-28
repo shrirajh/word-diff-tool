@@ -2,7 +2,6 @@
 
 import { Command } from "commander";
 import fs from "fs";
-import path from "path";
 import { processDocxWithTrackedChanges } from "./processor";
 
 const program = new Command();
@@ -36,7 +35,8 @@ program
             if (options.output) {
                 fs.writeFileSync(options.output, markdown);
                 console.error(`✅ Output written to: ${options.output}`);
-            } else {
+            }
+            else {
                 process.stdout.write(markdown);
             }
         }

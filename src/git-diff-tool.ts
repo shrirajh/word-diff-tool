@@ -53,12 +53,20 @@ export async function generateGitDiff(filePath: string): Promise<GitDiffOutput> 
 /**
  * Extract tracked changes from document XML with full context
  */
-function extractTrackedChanges(xml: string): { changes: TrackedChange[]; fullText: string } {
+function extractTrackedChanges(xml: string): {
+    changes: TrackedChange[];
+    fullText: string;
+} {
     const changes: TrackedChange[] = [];
     const paragraphTexts: string[] = [];
 
     // Find all paragraphs first
-    const paragraphs: { start: number; end: number; content: string; text: string }[] = [];
+    const paragraphs: {
+        start: number;
+        end: number;
+        content: string;
+        text: string;
+    }[] = [];
     let currentPos = 0;
     let startTagPos = xml.indexOf("<w:p", currentPos);
 
@@ -96,14 +104,23 @@ function extractTrackedChanges(xml: string): { changes: TrackedChange[]; fullTex
 
         // Process insertions
         const insertions = extractChangesOfType(paragraph.content, "ins", paragraphNumber);
-        changes.push(...insertions.map(c => ({ ...c, type: "add" as const })));
+        changes.push(...insertions.map(c => ({
+            ...c,
+            type: "add" as const,
+        })));
 
         // Process deletions
         const deletions = extractChangesOfType(paragraph.content, "del", paragraphNumber);
-        changes.push(...deletions.map(c => ({ ...c, type: "delete" as const })));
+        changes.push(...deletions.map(c => ({
+            ...c,
+            type: "delete" as const,
+        })));
     }
 
-    return { changes, fullText };
+    return {
+        changes,
+        fullText,
+    };
 }
 
 /**
@@ -227,7 +244,10 @@ function findUniqueContext(
     fullText: string,
     minLength: number = 10,
     maxLength: number = 100,
-): { before: string; after: string } {
+): {
+    before: string;
+    after: string;
+} {
     const { fullContextBefore, fullContextAfter } = change;
 
     // Start with minimum context
@@ -266,11 +286,14 @@ function findUniqueContext(
         // Expand both sides proportionally
         if (beforeLen < fullContextBefore.length && beforeLen <= afterLen) {
             beforeLen = Math.min(beforeLen + 10, fullContextBefore.length, maxLength);
-        } else if (afterLen < fullContextAfter.length) {
+        }
+        else if (afterLen < fullContextAfter.length) {
             afterLen = Math.min(afterLen + 10, fullContextAfter.length, maxLength);
-        } else if (beforeLen < fullContextBefore.length) {
+        }
+        else if (beforeLen < fullContextBefore.length) {
             beforeLen = Math.min(beforeLen + 10, fullContextBefore.length, maxLength);
-        } else {
+        }
+        else {
             // Can't expand further
             break;
         }
@@ -288,7 +311,10 @@ function findUniqueContext(
         after = after + "...";
     }
 
-    return { before, after };
+    return {
+        before,
+        after,
+    };
 }
 
 const FORMAT_HEADER = `# Word Document Diff (Modified Format)
@@ -385,10 +411,12 @@ export function formatAsGitDiff(output: GitDiffOutput): string {
 
             if (change.type === "delete") {
                 lines.push(`-${change.text}${contextQuote}`);
-            } else {
+            }
+            else {
                 lines.push(`+${change.text}${contextQuote}`);
             }
-        } else if (item.type === "comment" && item.comment) {
+        }
+        else if (item.type === "comment" && item.comment) {
             const comment = item.comment;
             const uniqueContext = findUniqueContextForComment(comment, output.fullText);
             const commentText = escapeNewlines(comment.text);
@@ -443,11 +471,14 @@ function findUniqueContextForComment(
         // Expand both sides
         if (beforeLen <= afterLen && beforeLen < contextBefore.length) {
             beforeLen = Math.min(beforeLen + 10, contextBefore.length, maxContextLength);
-        } else if (afterLen < contextAfter.length) {
+        }
+        else if (afterLen < contextAfter.length) {
             afterLen = Math.min(afterLen + 10, contextAfter.length, maxContextLength);
-        } else if (beforeLen < contextBefore.length) {
+        }
+        else if (beforeLen < contextBefore.length) {
             beforeLen = Math.min(beforeLen + 10, contextBefore.length, maxContextLength);
-        } else {
+        }
+        else {
             // Can't expand further
             break;
         }
@@ -470,7 +501,7 @@ function findUniqueContextForComment(
     if (before) {
         parts.push(before);
     }
-    parts.push(`[${anchoredText}]`);  // Brackets to clearly mark the selected text
+    parts.push(`[${anchoredText}]`); // Brackets to clearly mark the selected text
     if (after) {
         parts.push(after);
     }
@@ -507,11 +538,14 @@ function findUniquePointContext(
         // Expand both sides
         if (beforeLen <= afterLen && beforeLen < contextBefore.length) {
             beforeLen = Math.min(beforeLen + 10, contextBefore.length, maxContextLength);
-        } else if (afterLen < contextAfter.length) {
+        }
+        else if (afterLen < contextAfter.length) {
             afterLen = Math.min(afterLen + 10, contextAfter.length, maxContextLength);
-        } else if (beforeLen < contextBefore.length) {
+        }
+        else if (beforeLen < contextBefore.length) {
             beforeLen = Math.min(beforeLen + 10, contextBefore.length, maxContextLength);
-        } else {
+        }
+        else {
             // Can't expand further
             break;
         }
@@ -532,11 +566,14 @@ function findUniquePointContext(
     // Use >|< to mark the cursor position (point comment)
     if (before && after) {
         return `${before}>|<${after}`;
-    } else if (before) {
+    }
+    else if (before) {
         return `${before}>|<`;
-    } else if (after) {
+    }
+    else if (after) {
         return `>|<${after}`;
-    } else {
+    }
+    else {
         return "(empty paragraph)";
     }
 }
@@ -582,15 +619,4 @@ function formatContextQuote(before: string, after: string): string {
 
     const quote = parts.join(" [...] ");
     return `  # "${quote}"`;
-}
-
-/**
- * Truncate text for display with ellipsis
- */
-function truncateForDisplay(text: string, maxLength: number): string {
-    text = text.trim();
-    if (text.length <= maxLength) {
-        return text;
-    }
-    return text.slice(0, maxLength) + "...";
 }

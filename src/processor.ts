@@ -306,17 +306,18 @@ function mergeAdjacentDiffs(parts: {
 
     for (let i = 1; i < parts.length; i++) {
         const nextPart = parts[i];
-        
+
         // If both parts are the same type (ins or del), merge them
         if (currentPart.type !== "text" && nextPart.type === currentPart.type) {
             currentPart.content += nextPart.content;
-        } else {
+        }
+        else {
             // Push the current part and move to the next
             mergedParts.push(currentPart);
             currentPart = nextPart;
         }
     }
-    
+
     // Push the last part
     mergedParts.push(currentPart);
 
@@ -332,7 +333,7 @@ function convertParagraphPartsToMarkdown(parts: {
 }[]): string {
     // First merge adjacent diffs of the same type
     const mergedParts = mergeAdjacentDiffs(parts);
-    
+
     // Combine parts with appropriate markdown and tracked change markers
     let markdown = "";
 

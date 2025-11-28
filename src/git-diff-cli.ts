@@ -35,7 +35,8 @@ program
             let output: string;
             if (options.json) {
                 output = JSON.stringify(diffOutput, null, 2);
-            } else {
+            }
+            else {
                 output = formatAsGitDiff(diffOutput);
             }
 
@@ -43,7 +44,8 @@ program
             if (options.output) {
                 fs.writeFileSync(options.output, output);
                 console.error(`✅ Output written to: ${options.output}`);
-            } else {
+            }
+            else {
                 process.stdout.write(output + "\n");
             }
         }
