@@ -1,144 +1,129 @@
-# Word-Diff-Tool: A Toolkit for Tracked Changes in Documents
+# word-diff-tool
 
-A suite of command-line tools for working with tracked changes in different formats, using CriticMarkup syntax as a common format.
+CLI tools for extracting tracked changes and comments from Word documents.
 
-## Tools Included
+## Tools
 
-1. **word-diff-tool**: Converts Word documents (.docx) with tracked changes into Markdown format
-2. **md-diff-tool**: Compares two Markdown files with CriticMarkup and generates a diff file
-3. **md-apply-tool**: Applies CriticMarkup changes in a Markdown file
-
-## Features
-
-- Directly extracts content and tracked changes from Word documents
-- Works with complex DOCX files containing tracked changes
-- Creates diffs between Markdown files with tracked changes
-- Applies tracked changes to create clean documents
-- Uses CriticMarkup syntax for consistent representation:
-  - Insertions: `{++added text++}`
-  - Deletions: `{--removed text--}`
-- Formats converted content with basic Markdown conventions
+| Command | Description |
+|---------|-------------|
+| `word-diff-tool` | Convert .docx with tracked changes to Markdown with CriticMarkup |
+| `word-git-diff` | Generate git-style diff output from .docx with tracked changes and comments |
+| `md-diff-tool` | Compare two Markdown files, output CriticMarkup diff |
+| `md-apply-tool` | Apply CriticMarkup changes to produce clean output |
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/shrirajh/word-diff-tool.git
-cd word-diff-tool
-
-# Install dependencies
 npm install
-
-# Build the project
 npm run build
-
-# Make the CLI executable
-chmod +x dist/index.js
-
-# Create a global symlink (optional)
-npm link
+npm link  # optional, for global CLI access
 ```
 
-## Usage
+## word-diff-tool
 
-### Word to Markdown Conversion
+Converts Word documents with tracked changes to Markdown using CriticMarkup syntax.
 
 ```bash
-# Convert Word document with tracked changes to Markdown
-word-diff-tool input.docx
-
-# Specify an output file
-word-diff-tool input.docx -o output.md
+word-diff-tool document.docx                    # output to stdout
+word-diff-tool document.docx -o output.md       # output to file
+word-diff-tool document.docx -h                 # treat highlights as changes (green=add, red=delete)
 ```
 
-### Markdown Diff Tool
+Output uses CriticMarkup:
+- `{++added text++}` for insertions
+- `{--deleted text--}` for deletions
+
+## word-git-diff
+
+Generates a git-style diff showing tracked changes and comments from Word documents.
 
 ```bash
-# Compare two Markdown files with CriticMarkup
-md-diff-tool --first file1.md --second file2.md
-
-# Specify an output file
-md-diff-tool --first file1.md --second file2.md --output diff-result.md
+word-git-diff document.docx                     # output to stdout
+word-git-diff document.docx -o output.diff      # output to file
+word-git-diff document.docx --json              # output as JSON
 ```
 
-### Markdown Apply Tool
+### Output Format
 
-```bash
-# Apply CriticMarkup changes in a file
-md-apply-tool --input document-with-changes.md
+```
+# Word Document Diff (Modified Format)
+# =====================================
+# This is a modified diff format for Word documents with tracked changes.
+#
+# Format:
+#   +line = added text
+#   -line = deleted text
+#   > [author]: comment text (interspersed with changes in document order)
+#   @@ paragraph N @@ = paragraph number where changes occur
+#
+# Context (after #):
+#   "before [...] after" = surrounding text with [...] marking where the change occurs
+#   "before [selected] after" = for comments, [brackets] mark the commented text
+#   "before>|<after" = for point comments (no selection), >|< marks cursor position
+#   ... = truncated text
+#   Context auto-expands until unique in the document
+#
 
-# Specify an output file
-md-apply-tool --input document-with-changes.md --output clean-document.md
+diff --word a/document.docx b/document.docx
+--- a/document.docx
++++ b/document.docx
+@@ paragraph 2 @@
++new text  # "...before [...] after..."
+-removed text  # "...before [...] after..."
+> [John Smith]: Please review this section  # "selected text"
+@@ paragraph 5 @@
+> [Jane Doe]: Consider rewording  # "...context>|<more context..."
 ```
 
-## Examples
+Features:
+- Tracked changes shown as `+` (additions) and `-` (deletions)
+- Comments shown with `>` prefix, interspersed in document order
+- Context auto-expands to be unique within the document
+- Comments on selected text show `[the selected text]`
+- Point comments (no selection) show cursor position as `>|<`
+
+## md-diff-tool
+
+Compares two Markdown files and outputs the differences in CriticMarkup.
 
 ```bash
-# Process a Word document
-word-diff-tool trackingtest1.docx
-
-# Generate a diff between two Markdown files
+md-diff-tool --first original.md --second revised.md
 md-diff-tool --first original.md --second revised.md --output diff.md
+```
 
-# Apply changes from a Markdown file with CriticMarkup
-md-apply-tool --input diff.md --output final.md
+## md-apply-tool
+
+Applies CriticMarkup changes to produce a clean document.
+
+```bash
+md-apply-tool --input document-with-markup.md
+md-apply-tool --input document-with-markup.md --output clean.md
 ```
 
 ## How It Works
 
-### word-diff-tool
+### Word Document Processing
 
-The Word to Markdown converter takes a fundamentally different approach compared to other tools:
+The tools directly parse the `.docx` XML structure:
 
-1. **Direct XML Processing**: Instead of converting to an intermediate format (like HTML), the tool directly processes the Word document's XML structure
-2. **Tracked Changes Integration**: Insertions and deletions are extracted during the XML processing, preserving their original positions
-3. **Content Building**: The tool reconstructs the document content piece by piece, inserting tracked changes at the appropriate positions
-4. **Markdown Formatting**: The final step applies basic Markdown formatting conventions to the text
+- **document.xml**: Contains paragraphs (`<w:p>`), runs (`<w:r>`), and tracked changes (`<w:ins>`, `<w:del>`)
+- **comments.xml**: Contains comment text, author, and date
+- **Comment ranges**: `<w:commentRangeStart>` and `<w:commentRangeEnd>` in document.xml mark what text a comment is attached to
 
-This approach ensures that tracked changes appear in the correct locations within the document, avoiding position calculation issues that can occur with other approaches.
+### CriticMarkup Syntax
 
-### md-diff-tool
-
-The Markdown Diff Tool uses the diff-match-patch algorithm to compare texts:
-
-1. **Change Application**: First applies any existing CriticMarkup changes in both input files
-2. **Diff Generation**: Compares the resulting clean texts using a semantic diff algorithm
-3. **Markup Creation**: Formats the differences using CriticMarkup syntax:
-   - Additions are marked with `{++text++}`
-   - Deletions are marked with `{--text--}`
-
-The tool is designed to handle nested changes and complex differences effectively.
-
-### md-apply-tool
-
-The Markdown Apply Tool processes CriticMarkup syntax:
-
-1. **Deletion Processing**: First removes content marked for deletion
-2. **Insertion Processing**: Preserves content marked for insertion while removing the markup
-3. **Clean Output**: Produces a final document with all changes applied
-
-This sequential processing ensures that nested markup is handled correctly.
+```
+This is {++inserted++} text.
+This is {--deleted--} text.
+This is {~~replaced~>with new~~} text.
+```
 
 ## Dependencies
 
-- jszip: For extracting content from .docx files
-- commander: For building the CLI interface
-- diff-match-patch-es: For generating semantic diffs between texts
-
-## Technical Notes
-
-Word documents store tracked changes in their XML structure using specific tags:
-- Insertions: `<w:ins>` elements 
-- Deletions: `<w:del>` elements with `<w:delText>` content
-
-The diff tools use the CriticMarkup syntax, which is a standard for marking up changes in Markdown files:
-- Insertions: `{++added text++}`
-- Deletions: `{--removed text--}`
+- `jszip` - Extract XML from .docx files
+- `commander` - CLI interface
+- `diff-match-patch-es` - Semantic diff algorithm
 
 ## License
 
 ISC
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
