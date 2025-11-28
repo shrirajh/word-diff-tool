@@ -1,6 +1,7 @@
 import fs from "fs";
 import * as JSZip from "jszip";
 import path from "path";
+import { decodeXmlEntities } from "./docx-utils";
 
 /**
  * Process a Word document with tracked changes and convert to markdown with inline diffs
@@ -11,9 +12,9 @@ import path from "path";
  */
 export async function processDocxWithTrackedChanges(filePath: string, useHighlights = false): Promise<string> {
     try {
-        console.log("Reading document file...");
+        console.error("Reading document file...");
         const buffer = fs.readFileSync(filePath);
-        console.log("Extracting document content with tracked changes...");
+        console.error("Extracting document content with tracked changes...");
 
         // Extract the document XML from the .docx file
         const zip = await JSZip.loadAsync(buffer);
@@ -23,7 +24,7 @@ export async function processDocxWithTrackedChanges(filePath: string, useHighlig
             throw new Error("Could not extract document.xml from the Word document");
         }
 
-        console.log("Converting to markdown with tracked changes...");
+        console.error("Converting to markdown with tracked changes...");
         // Convert the document content to markdown with tracked changes
         const markdown = convertDocxXmlToMarkdown(documentXml, useHighlights, filePath);
 
@@ -39,14 +40,14 @@ export async function processDocxWithTrackedChanges(filePath: string, useHighlig
  * Directly convert Word document XML to markdown with tracked changes
  */
 function convertDocxXmlToMarkdown(xml: string, useHighlights = false, filePath = "document.docx"): string {
-    console.log(`Document XML size: ${xml.length} characters`);
+    console.error(`Document XML size: ${xml.length} characters`);
 
     // Extract each paragraph from the document
     const paragraphs = useHighlights
         ? extractParagraphsWithHighlights(xml)
         : extractParagraphs(xml);
 
-    console.log(`Extracted ${paragraphs.length} paragraphs`);
+    console.error(`Extracted ${paragraphs.length} paragraphs`);
 
     // Combine paragraphs into markdown, using filename as title
     let markdown = `# ${path.basename(filePath, ".docx")}\n\n`;
@@ -58,7 +59,7 @@ function convertDocxXmlToMarkdown(xml: string, useHighlights = false, filePath =
     // Clean up excessive newlines
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
 
-    console.log(`Final markdown size: ${markdown.length} characters`);
+    console.error(`Final markdown size: ${markdown.length} characters`);
 
     return markdown;
 }
@@ -82,7 +83,7 @@ function extractParagraphs(xml: string): string[] {
 
             paragraphCount++;
             if (paragraphCount % 20 === 0) {
-                console.log(`Processing paragraph ${paragraphCount}...`);
+                console.error(`Processing paragraph ${paragraphCount}...`);
             }
 
             // Extract the paragraph content (excluding the tags)
@@ -91,19 +92,12 @@ function extractParagraphs(xml: string): string[] {
                 endTagPos,
             );
 
-            try {
-                // Process the paragraph content
-                const processedParagraph = processParagraphContent(paragraphContent);
+            // Process the paragraph content
+            const processedParagraph = processParagraphContent(paragraphContent);
 
-                // Skip empty paragraphs
-                if (processedParagraph.trim()) {
-                    paragraphs.push(processedParagraph);
-                }
-            }
-            catch (error) {
-                console.error(`Error processing paragraph ${paragraphCount}: ${error}`);
-                // Add a placeholder for the failed paragraph to preserve document structure
-                paragraphs.push(`[Error processing paragraph ${paragraphCount}]`);
+            // Skip empty paragraphs
+            if (processedParagraph.trim()) {
+                paragraphs.push(processedParagraph);
             }
 
             // Move to the next paragraph
@@ -111,7 +105,7 @@ function extractParagraphs(xml: string): string[] {
             startTagPos = xml.indexOf("<w:p", currentPos);
         }
 
-        console.log(`Total paragraphs found: ${paragraphCount}`);
+        console.error(`Total paragraphs found: ${paragraphCount}`);
     }
     catch (error) {
         console.error("Error extracting paragraphs:", error);
@@ -159,7 +153,7 @@ function processParagraphContent(paragraphXml: string): string {
                 continue;
             }
 
-            const insContent = paragraphXml.substring(insStartIndex, insEndIndex + 7);
+            const insContent = paragraphXml.substring(insStartIndex, insEndIndex + 8);
             const insertedText = extractTextFromElement(insContent, "ins");
 
             if (insertedText) {
@@ -169,7 +163,7 @@ function processParagraphContent(paragraphXml: string): string {
                 });
             }
 
-            currentPosition = insEndIndex + 7;
+            currentPosition = insEndIndex + 8;
         }
         else if (delStartIndex !== -1 && (delStartIndex < runStartIndex || runStartIndex === -1)) {
             // Process deletion
@@ -181,7 +175,7 @@ function processParagraphContent(paragraphXml: string): string {
                 continue;
             }
 
-            const delContent = paragraphXml.substring(delStartIndex, delEndIndex + 7);
+            const delContent = paragraphXml.substring(delStartIndex, delEndIndex + 8);
             const deletedText = extractTextFromElement(delContent, "del");
 
             if (deletedText) {
@@ -191,7 +185,7 @@ function processParagraphContent(paragraphXml: string): string {
                 });
             }
 
-            currentPosition = delEndIndex + 7;
+            currentPosition = delEndIndex + 8;
         }
         else if (runStartIndex !== -1) {
             // Process regular run
@@ -374,11 +368,16 @@ function formatParagraphAsMarkdown(text: string): string {
         }
     }
 
-    // Format links
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, match => match); // Preserve existing markdown links
-    text = text.replace(/(\b(?:https?|ftp):\/\/[^\s]+\b)/g, (url) => {
-    // Don't convert URLs that are already part of a markdown link
-        if (text.includes(`[`) && text.includes(`](${url})`)) {
+    // Format links - wrap bare URLs in angle brackets, but skip URLs already in markdown link syntax
+    text = text.replace(/(\b(?:https?|ftp):\/\/[^\s]+\b)/g, (url, _match, offset) => {
+        // Check if this URL is already part of a markdown link by looking for ](url) pattern
+        const beforeUrl = text.substring(0, offset);
+        const afterUrl = text.substring(offset + url.length);
+        if (beforeUrl.includes("[") && beforeUrl.endsWith("](") && afterUrl.startsWith(")")) {
+            return url;
+        }
+        // Check if URL is already wrapped in angle brackets
+        if (beforeUrl.endsWith("<") && afterUrl.startsWith(">")) {
             return url;
         }
         return `<${url}>`;
@@ -424,7 +423,7 @@ function extractParagraphsWithHighlights(xml: string): string[] {
 
             paragraphCount++;
             if (paragraphCount % 20 === 0) {
-                console.log(`Processing paragraph ${paragraphCount}...`);
+                console.error(`Processing paragraph ${paragraphCount}...`);
             }
 
             // Extract the paragraph content (excluding the tags)
@@ -433,19 +432,12 @@ function extractParagraphsWithHighlights(xml: string): string[] {
                 endTagPos,
             );
 
-            try {
-                // Process the paragraph content with highlights
-                const processedParagraph = processParagraphContentWithHighlights(paragraphContent);
+            // Process the paragraph content with highlights
+            const processedParagraph = processParagraphContentWithHighlights(paragraphContent);
 
-                // Skip empty paragraphs
-                if (processedParagraph.trim()) {
-                    paragraphs.push(processedParagraph);
-                }
-            }
-            catch (error) {
-                console.error(`Error processing paragraph ${paragraphCount}: ${error}`);
-                // Add a placeholder for the failed paragraph to preserve document structure
-                paragraphs.push(`[Error processing paragraph ${paragraphCount}]`);
+            // Skip empty paragraphs
+            if (processedParagraph.trim()) {
+                paragraphs.push(processedParagraph);
             }
 
             // Move to the next paragraph
@@ -453,7 +445,7 @@ function extractParagraphsWithHighlights(xml: string): string[] {
             startTagPos = xml.indexOf("<w:p", currentPos);
         }
 
-        console.log(`Total paragraphs found: ${paragraphCount}`);
+        console.error(`Total paragraphs found: ${paragraphCount}`);
     }
     catch (error) {
         console.error("Error extracting paragraphs with highlights:", error);
@@ -553,7 +545,7 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
                 continue;
             }
 
-            const insContent = paragraphXml.substring(insStartIndex, insEndIndex + 7);
+            const insContent = paragraphXml.substring(insStartIndex, insEndIndex + 8);
             const insertedText = extractTextFromElement(insContent, "ins");
 
             if (insertedText) {
@@ -563,7 +555,7 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
                 });
             }
 
-            currentPosition = insEndIndex + 7;
+            currentPosition = insEndIndex + 8;
         }
         else if (delStartIndex !== -1) {
             // Process deletion
@@ -575,7 +567,7 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
                 continue;
             }
 
-            const delContent = paragraphXml.substring(delStartIndex, delEndIndex + 7);
+            const delContent = paragraphXml.substring(delStartIndex, delEndIndex + 8);
             const deletedText = extractTextFromElement(delContent, "del");
 
             if (deletedText) {
@@ -585,7 +577,7 @@ function processParagraphContentWithHighlights(paragraphXml: string): string {
                 });
             }
 
-            currentPosition = delEndIndex + 7;
+            currentPosition = delEndIndex + 8;
         }
         else {
             // Shouldn't get here, but just in case, move forward to avoid infinite loop
@@ -632,17 +624,4 @@ function getHighlightType(runXml: string): "green" | "red" | "none" {
     }
 
     return "none";
-}
-
-/**
- * Decode XML entities in a string
- */
-function decodeXmlEntities(text: string): string {
-    return text
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, "\"")
-        .replace(/&apos;/g, "'")
-        .replace(/&amp;/g, "&")
-        .replace(/&nbsp;/g, " ");
 }

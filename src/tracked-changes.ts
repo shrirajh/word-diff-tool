@@ -1,5 +1,8 @@
 import fs from "fs";
-import { extractDocumentXml, extractRuns, extractDocumentStructure } from "./docx-utils";
+import os from "os";
+import path from "path";
+import crypto from "crypto";
+import { extractDocumentXml, extractRuns, extractDocumentStructure, decodeXmlEntities } from "./docx-utils";
 
 /**
  * Represents a tracked change in a document
@@ -24,16 +27,15 @@ export interface TrackedChange {
  * @returns Array of tracked changes
  */
 export async function extractTrackedChanges(docxBuffer: Buffer): Promise<TrackedChange[]> {
+    // Create a unique temporary file to process (platform-independent)
+    const uniqueId = crypto.randomBytes(8).toString("hex");
+    const tempFilePath = path.join(os.tmpdir(), `temp-docx-${uniqueId}.docx`);
+
     try {
-    // Create a temporary file to process
-        const tempFilePath = "/tmp/temp-docx-file.docx";
         fs.writeFileSync(tempFilePath, docxBuffer);
 
         // Extract document XML
         const docXml = await extractDocumentXml(tempFilePath);
-
-        // Clean up temporary file
-        fs.unlinkSync(tempFilePath);
 
         // Extract changes from document.xml
         const trackedChanges: TrackedChange[] = [];
@@ -125,6 +127,16 @@ export async function extractTrackedChanges(docxBuffer: Buffer): Promise<Tracked
     catch (error) {
         console.error("Error extracting tracked changes:", error);
         return [];
+    }
+    finally {
+        // Ensure temp file is cleaned up even on error
+        try {
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
+        } catch {
+            // Ignore cleanup errors
+        }
     }
 }
 
@@ -250,16 +262,4 @@ function findAllMatches(pattern: RegExp, text: string): RegExpExecArray[] {
     }
 
     return matches;
-}
-
-/**
- * Decode XML entities in a string
- */
-function decodeXmlEntities(text: string): string {
-    return text
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, "\"")
-        .replace(/&apos;/g, "'")
-        .replace(/&amp;/g, "&");
 }

@@ -64,11 +64,10 @@ export function extractDocumentStructure(xml: string): DocumentStructure {
 
     let currentTextIndex = 0;
 
-    // Find all paragraph elements
-    const paragraphRegex = /<w:p\b[^>]*>(.*?)<\/w:p>/gs;
-    let paragraphMatch;
+    // Find all paragraph elements using matchAll to avoid regex state issues
+    const paragraphMatches = xml.matchAll(/<w:p\b[^>]*>(.*?)<\/w:p>/gs);
 
-    while ((paragraphMatch = paragraphRegex.exec(xml)) !== null) {
+    for (const paragraphMatch of paragraphMatches) {
         const paragraphXml = paragraphMatch[0];
         const paragraphContentXml = paragraphMatch[1];
 
@@ -81,18 +80,16 @@ export function extractDocumentStructure(xml: string): DocumentStructure {
             index: number;
             xml: string;
         }[] = [];
-        const runRegex = /<w:r\b[^>]*>(.*?)<\/w:r>/gs;
-        let runMatch;
+        const runMatches = paragraphContentXml.matchAll(/<w:r\b[^>]*>(.*?)<\/w:r>/gs);
 
-        while ((runMatch = runRegex.exec(paragraphContentXml)) !== null) {
+        for (const runMatch of runMatches) {
             const runXml = runMatch[0];
             const runContentXml = runMatch[1];
 
             let runText = "";
-            const textRegex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
-            let textMatch;
+            const textMatches = runContentXml.matchAll(/<w:t\b[^>]*>(.*?)<\/w:t>/gs);
 
-            while ((textMatch = textRegex.exec(runContentXml)) !== null) {
+            for (const textMatch of textMatches) {
                 runText += textMatch[1];
             }
 
@@ -137,18 +134,16 @@ export function extractParagraphs(xml: string): {
     }[] = [];
     let currentIndex = 0;
 
-    // Find all paragraph elements
-    const paragraphRegex = /<w:p\b[^>]*>(.*?)<\/w:p>/gs;
-    let match;
+    // Find all paragraph elements using matchAll to avoid regex state issues
+    const paragraphMatches = xml.matchAll(/<w:p\b[^>]*>(.*?)<\/w:p>/gs);
 
-    while ((match = paragraphRegex.exec(xml)) !== null) {
+    for (const match of paragraphMatches) {
         const paragraphXml = match[1];
-        const textRegex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
-        let textMatch;
         let paragraphText = "";
 
         // Extract text from the paragraph
-        while ((textMatch = textRegex.exec(paragraphXml)) !== null) {
+        const textMatches = paragraphXml.matchAll(/<w:t\b[^>]*>(.*?)<\/w:t>/gs);
+        for (const textMatch of textMatches) {
             paragraphText += textMatch[1];
         }
 
@@ -177,18 +172,16 @@ export function extractRuns(xml: string): {
     }[] = [];
     let currentIndex = 0;
 
-    // Find all text runs
-    const runRegex = /<w:r\b[^>]*>(.*?)<\/w:r>/gs;
-    let match;
+    // Find all text runs using matchAll to avoid regex state issues
+    const runMatches = xml.matchAll(/<w:r\b[^>]*>(.*?)<\/w:r>/gs);
 
-    while ((match = runRegex.exec(xml)) !== null) {
+    for (const match of runMatches) {
         const runXml = match[1];
-        const textRegex = /<w:t\b[^>]*>(.*?)<\/w:t>/gs;
-        let textMatch;
         let runText = "";
 
         // Extract text from the run
-        while ((textMatch = textRegex.exec(runXml)) !== null) {
+        const textMatches = runXml.matchAll(/<w:t\b[^>]*>(.*?)<\/w:t>/gs);
+        for (const textMatch of textMatches) {
             runText += textMatch[1];
         }
 
@@ -204,4 +197,17 @@ export function extractRuns(xml: string): {
     }
 
     return runs;
+}
+
+/**
+ * Decode XML entities in a string
+ */
+export function decodeXmlEntities(text: string): string {
+    return text
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, "\"")
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, "&")
+        .replace(/&nbsp;/g, " ");
 }
