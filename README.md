@@ -63,6 +63,9 @@ word-git-diff document.docx --json              # output as JSON
 #   ... = truncated text
 #   Context auto-expands until unique in the document
 #
+# Special characters:
+#   ␊ = newline (for multiline comments or selections)
+#
 
 diff --word a/document.docx b/document.docx
 --- a/document.docx

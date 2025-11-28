@@ -308,6 +308,9 @@ const FORMAT_HEADER = `# Word Document Diff (Modified Format)
 #   ... = truncated text
 #   Context auto-expands until unique in the document
 #
+# Special characters:
+#   ␊ = newline (for multiline comments or selections)
+#
 `;
 
 /**
@@ -388,7 +391,9 @@ export function formatAsGitDiff(output: GitDiffOutput): string {
         } else if (item.type === "comment" && item.comment) {
             const comment = item.comment;
             const uniqueContext = findUniqueContextForComment(comment, output.fullText);
-            lines.push(`> [${comment.author}]: ${comment.text}  # "${uniqueContext}"`);
+            const commentText = escapeNewlines(comment.text);
+            const contextText = escapeNewlines(uniqueContext);
+            lines.push(`> [${comment.author}]: ${commentText}  # "${contextText}"`);
         }
     }
 
@@ -548,6 +553,14 @@ function countOccurrences(needle: string, haystack: string): number {
         pos += 1;
     }
     return count;
+}
+
+/**
+ * Escape newlines for single-line output
+ * Uses ␊ (U+240A) as a visible newline indicator
+ */
+function escapeNewlines(text: string): string {
+    return text.replace(/\r\n/g, "␊").replace(/\n/g, "␊").replace(/\r/g, "␊");
 }
 
 /**
