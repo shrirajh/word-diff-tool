@@ -19,6 +19,24 @@ export interface DocumentStructure {
 }
 
 /**
+ * Represents a comment extracted from a Word document
+ */
+export interface WordComment {
+    id: string;
+    author: string;
+    date: string;
+    text: string;
+    // The text that the comment is attached to (between commentRangeStart and commentRangeEnd)
+    anchoredText: string;
+    // Context before the anchored text (for uniqueness)
+    contextBefore: string;
+    // Context after the anchored text (for uniqueness)
+    contextAfter: string;
+    // Paragraph number (1-indexed) where the comment starts
+    paragraphNumber: number;
+}
+
+/**
  * Extracts and returns the contents of the document.xml file from a .docx file
  */
 export async function extractDocumentXml(docxPath: string): Promise<string> {
@@ -210,4 +228,208 @@ export function decodeXmlEntities(text: string): string {
         .replace(/&apos;/g, "'")
         .replace(/&amp;/g, "&")
         .replace(/&nbsp;/g, " ");
+}
+
+/**
+ * Extract comments from a Word document
+ * Comments are stored in word/comments.xml and referenced in word/document.xml
+ * via commentRangeStart, commentRangeEnd, and commentReference elements
+ */
+export async function extractComments(docxPath: string): Promise<WordComment[]> {
+    const fileBuffer = fs.readFileSync(docxPath);
+    const zip = await JSZip.loadAsync(fileBuffer);
+
+    // Get comments.xml
+    const commentsXmlFile = zip.file("word/comments.xml");
+    if (!commentsXmlFile) {
+        // No comments in this document
+        return [];
+    }
+
+    const commentsXml = await commentsXmlFile.async("string");
+
+    // Get document.xml to find comment ranges and paragraph numbers
+    const documentXmlFile = zip.file("word/document.xml");
+    if (!documentXmlFile) {
+        throw new Error("document.xml not found in the .docx file");
+    }
+    const documentXml = await documentXmlFile.async("string");
+
+    // Parse comments from comments.xml
+    const commentMap = parseCommentsXml(commentsXml);
+
+    // Find comment ranges and anchored text from document.xml
+    const commentRanges = parseCommentRanges(documentXml);
+
+    // Merge comment content with range information
+    const comments: WordComment[] = [];
+    for (const [id, comment] of commentMap.entries()) {
+        const range = commentRanges.get(id);
+        comments.push({
+            id,
+            author: comment.author,
+            date: comment.date,
+            text: comment.text,
+            anchoredText: range?.anchoredText || "",
+            contextBefore: range?.contextBefore || "",
+            contextAfter: range?.contextAfter || "",
+            paragraphNumber: range?.paragraphNumber || 0,
+        });
+    }
+
+    // Sort by paragraph number
+    comments.sort((a, b) => a.paragraphNumber - b.paragraphNumber);
+
+    return comments;
+}
+
+/**
+ * Parse the comments.xml file to extract comment content
+ */
+function parseCommentsXml(xml: string): Map<string, { author: string; date: string; text: string }> {
+    const commentMap = new Map<string, { author: string; date: string; text: string }>();
+
+    // Find all w:comment elements
+    const commentRegex = /<w:comment\s+[^>]*w:id="([^"]+)"[^>]*w:author="([^"]*)"[^>]*w:date="([^"]*)"[^>]*>([\s\S]*?)<\/w:comment>/g;
+    // Also handle different attribute orders
+    const commentRegexAlt = /<w:comment\s+[^>]*w:author="([^"]*)"[^>]*w:id="([^"]+)"[^>]*w:date="([^"]*)"[^>]*>([\s\S]*?)<\/w:comment>/g;
+
+    let match;
+    while ((match = commentRegex.exec(xml)) !== null) {
+        const id = match[1];
+        const author = decodeXmlEntities(match[2]);
+        const date = match[3];
+        const content = match[4];
+
+        // Extract text from the comment content
+        const text = extractTextFromXmlContent(content);
+
+        commentMap.set(id, { author, date, text });
+    }
+
+    // Try alternate attribute order if no matches found
+    if (commentMap.size === 0) {
+        while ((match = commentRegexAlt.exec(xml)) !== null) {
+            const author = decodeXmlEntities(match[1]);
+            const id = match[2];
+            const date = match[3];
+            const content = match[4];
+
+            const text = extractTextFromXmlContent(content);
+
+            commentMap.set(id, { author, date, text });
+        }
+    }
+
+    // If still no matches, try a more flexible approach
+    if (commentMap.size === 0) {
+        const flexibleRegex = /<w:comment\s+([^>]*)>([\s\S]*?)<\/w:comment>/g;
+        while ((match = flexibleRegex.exec(xml)) !== null) {
+            const attrs = match[1];
+            const content = match[2];
+
+            const idMatch = /w:id="([^"]+)"/.exec(attrs);
+            const authorMatch = /w:author="([^"]*)"/.exec(attrs);
+            const dateMatch = /w:date="([^"]*)"/.exec(attrs);
+
+            if (idMatch) {
+                const id = idMatch[1];
+                const author = authorMatch ? decodeXmlEntities(authorMatch[1]) : "Unknown";
+                const date = dateMatch ? dateMatch[1] : "";
+                const text = extractTextFromXmlContent(content);
+
+                commentMap.set(id, { author, date, text });
+            }
+        }
+    }
+
+    return commentMap;
+}
+
+/**
+ * Extract text content from XML, removing all tags
+ */
+function extractTextFromXmlContent(xml: string): string {
+    let text = "";
+
+    // Extract text from w:t elements
+    const textRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+    let match;
+    while ((match = textRegex.exec(xml)) !== null) {
+        text += decodeXmlEntities(match[1]);
+    }
+
+    return text.trim();
+}
+
+/**
+ * Parse document.xml to find comment ranges (start/end) and the anchored text with context
+ */
+function parseCommentRanges(documentXml: string): Map<string, { anchoredText: string; contextBefore: string; contextAfter: string; paragraphNumber: number }> {
+    const rangeMap = new Map<string, { anchoredText: string; contextBefore: string; contextAfter: string; paragraphNumber: number }>();
+
+    // First, find all paragraphs and their positions and content
+    const paragraphs: { start: number; end: number; content: string }[] = [];
+    let paragraphMatch;
+    const paragraphRegex = /<w:p\b[^>]*>/g;
+
+    while ((paragraphMatch = paragraphRegex.exec(documentXml)) !== null) {
+        const start = paragraphMatch.index;
+        // Find the closing tag
+        const endTagIndex = documentXml.indexOf("</w:p>", start);
+        if (endTagIndex !== -1) {
+            const content = documentXml.substring(start, endTagIndex + 6);
+            paragraphs.push({ start, end: endTagIndex + 6, content });
+        }
+    }
+
+    // Find all commentRangeStart elements
+    const startRegex = /<w:commentRangeStart\s+w:id="([^"]+)"\s*\/>/g;
+    let startMatch;
+
+    while ((startMatch = startRegex.exec(documentXml)) !== null) {
+        const id = startMatch[1];
+        const startPos = startMatch.index;
+
+        // Find the corresponding commentRangeEnd
+        const endRegex = new RegExp(`<w:commentRangeEnd\\s+w:id="${id}"\\s*/>`, "g");
+        endRegex.lastIndex = startPos;
+        const endMatch = endRegex.exec(documentXml);
+
+        let anchoredText = "";
+        let contextBefore = "";
+        let contextAfter = "";
+
+        // Find which paragraph this comment is in
+        let paragraphNumber = 0;
+        let containingParagraph: { start: number; end: number; content: string } | null = null;
+
+        for (let i = 0; i < paragraphs.length; i++) {
+            if (startPos >= paragraphs[i].start && startPos <= paragraphs[i].end) {
+                paragraphNumber = i + 1; // 1-indexed
+                containingParagraph = paragraphs[i];
+                break;
+            }
+        }
+
+        if (endMatch) {
+            // Extract text between start and end (the anchored/selected text)
+            const rangeContent = documentXml.substring(startPos, endMatch.index);
+            anchoredText = extractTextFromXmlContent(rangeContent);
+
+            // Extract context before (from start of paragraph to commentRangeStart)
+            if (containingParagraph) {
+                const beforeContent = documentXml.substring(containingParagraph.start, startPos);
+                contextBefore = extractTextFromXmlContent(beforeContent);
+
+                // Extract context after (from commentRangeEnd to end of paragraph)
+                const afterContent = documentXml.substring(endMatch.index, containingParagraph.end);
+                contextAfter = extractTextFromXmlContent(afterContent);
+            }
+        }
+
+        rangeMap.set(id, { anchoredText, contextBefore, contextAfter, paragraphNumber });
+    }
+
+    return rangeMap;
 }

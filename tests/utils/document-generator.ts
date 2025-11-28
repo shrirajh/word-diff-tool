@@ -8,6 +8,9 @@ import {
     DeletedTextRun,
     Packer,
     SectionType,
+    CommentRangeStart,
+    CommentRangeEnd,
+    CommentReference,
 } from "docx";
 
 /**
@@ -334,6 +337,121 @@ export async function generateDocWithHighlights(outputPath: string): Promise<str
 }
 
 /**
+ * Generates a document with comments
+ */
+export async function generateDocWithComments(outputPath: string): Promise<string> {
+    // Create document with comments
+    const doc = new Document({
+        creator: "Comment Test",
+        title: "Test Document with Comments",
+        description: "Generated for testing comment extraction",
+        comments: {
+            children: [
+                {
+                    id: 0,
+                    author: "John Reviewer",
+                    date: new Date("2024-01-15T10:30:00Z"),
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun("This needs clarification"),
+                            ],
+                        }),
+                    ],
+                },
+                {
+                    id: 1,
+                    author: "Jane Editor",
+                    date: new Date("2024-01-16T14:20:00Z"),
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun("Consider rephrasing this section"),
+                            ],
+                        }),
+                    ],
+                },
+                {
+                    id: 2,
+                    author: "Bob Manager",
+                    date: new Date("2024-01-17T09:00:00Z"),
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun("Approved with minor changes"),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        },
+        sections: [
+            {
+                properties: {
+                    type: SectionType.CONTINUOUS,
+                },
+                children: [
+                    // First paragraph with a comment
+                    new Paragraph({
+                        children: [
+                            new TextRun("This is the first paragraph with "),
+                            new CommentRangeStart(0),
+                            new TextRun("important content"),
+                            new CommentRangeEnd(0),
+                            new CommentReference(0),
+                            new TextRun(" that needs review."),
+                        ],
+                    }),
+
+                    // Second paragraph with a comment
+                    new Paragraph({
+                        children: [
+                            new TextRun("The second paragraph discusses "),
+                            new CommentRangeStart(1),
+                            new TextRun("technical details"),
+                            new CommentRangeEnd(1),
+                            new CommentReference(1),
+                            new TextRun(" in depth."),
+                        ],
+                    }),
+
+                    // Third paragraph with comment and tracked change
+                    new Paragraph({
+                        children: [
+                            new TextRun("Final paragraph with "),
+                            new CommentRangeStart(2),
+                            new TextRun("approved text"),
+                            new CommentRangeEnd(2),
+                            new CommentReference(2),
+                            new TextRun(" and "),
+                            new InsertedTextRun({
+                                id: 0,
+                                children: [new TextRun("new addition")],
+                                author: "Editor",
+                                date: new Date().toISOString(),
+                            }),
+                            new TextRun("."),
+                        ],
+                    }),
+                ],
+            },
+        ],
+    });
+
+    // Create directory if it doesn't exist
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Generate and save the document
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+
+    return outputPath;
+}
+
+/**
  * Generates multiple test documents with different configurations
  */
 export async function generateTestSuite(): Promise<string[]> {
@@ -456,6 +574,11 @@ export async function generateTestSuite(): Promise<string[]> {
         // Document with highlighted text
         await generateDocWithHighlights(
             path.join(outputDir, "highlighted.docx"),
+        ),
+
+        // Document with comments
+        await generateDocWithComments(
+            path.join(outputDir, "with-comments.docx"),
         ),
     ];
 
